@@ -42,11 +42,11 @@ Sistem ujian online lengkap yang dibangun dengan **Laravel 13**, **TailwindCSS**
 
 ## Persyaratan Sistem
 
-- PHP >= 8.2
-- Composer >= 2.0
-- MySQL >= 5.7 atau MariaDB >= 10.2
-- Node.js >= 18.x
-- NPM >= 9.x
+- PHP >= 8.4 +
+- Composer >= 2.9.4
+- MySQL >= 8.4.9 
+- Node.js >= 22.22.2 (versi lts)
+- NPM >= 10.9.7 (versi lts)
 
 ## Instalasi
 
