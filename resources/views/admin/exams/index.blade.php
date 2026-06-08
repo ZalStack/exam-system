@@ -6,8 +6,8 @@
 <div class="max-w-7xl mx-auto px-4">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold">Manage Exams</h2>
-        <a href="{{ route('exams.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            Create New Exam
+        <a href="{{ route('admin.exams.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            + Create New Exam
         </a>
     </div>
 
@@ -28,9 +28,9 @@
                     <td class="px-6 py-4">{{ $exam->duration }}</td>
                     <td class="px-6 py-4">{{ $exam->questions_count }}</td>
                     <td class="px-6 py-4">
-                        <a href="{{ route('exams.questions.index', $exam) }}" class="text-blue-600 hover:text-blue-900 mr-3">Questions</a>
-                        <a href="{{ route('exams.edit', $exam) }}" class="text-green-600 hover:text-green-900 mr-3">Edit</a>
-                        <form action="{{ route('exams.destroy', $exam) }}" method="POST" class="inline">
+                        <a href="{{ route('admin.exams.questions.index', $exam) }}" class="text-blue-600 hover:text-blue-900 mr-3">Questions</a>
+                        <a href="{{ route('admin.exams.edit', $exam) }}" class="text-green-600 hover:text-green-900 mr-3">Edit</a>
+                        <form action="{{ route('admin.exams.destroy', $exam) }}" method="POST" class="inline">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure?')">Delete</button>
@@ -41,5 +41,11 @@
             </tbody>
         </table>
     </div>
+
+    @if($exams->isEmpty())
+        <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mt-4">
+            No exams created yet. Click "Create New Exam" to get started.
+        </div>
+    @endif
 </div>
 @endsection

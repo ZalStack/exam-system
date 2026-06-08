@@ -7,19 +7,6 @@
     <title>Exam System - @yield('title')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- MathJax for mathematical formulas -->
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            },
-            options: {
-                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
-            }
-        };
-    </script>
 </head>
 <body class="bg-gray-100">
     <nav class="bg-white shadow-lg">
@@ -33,6 +20,8 @@
                         @if(Auth::user()->isAdmin())
                             <a href="{{ route('admin.exams.index') }}" class="text-gray-700 hover:text-gray-900">📋 Manage Exams</a>
                             <a href="{{ route('admin.extra-time') }}" class="text-gray-700 hover:text-gray-900">⏰ Add Extra Time</a>
+                        @else
+                            <a href="{{ route('exams.index') }}" class="text-gray-700 hover:text-gray-900">📝 My Exams</a>
                         @endif
                         <span class="text-gray-700">{{ Auth::user()->name }} ({{ ucfirst(Auth::user()->role) }})</span>
                         <a href="{{ route('profile.edit') }}" class="text-gray-700 hover:text-gray-900">👤 Profile</a>

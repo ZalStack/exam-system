@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Storage;
 
 class QuestionController extends Controller
 {
-
     public function index(Exam $exam)
     {
         if (!Auth::user()->isAdmin()) {
@@ -52,7 +51,8 @@ class QuestionController extends Controller
         $validated['options'] = json_encode($request->options);
         $exam->questions()->create($validated);
 
-        return redirect()->route('exams.questions.index', $exam)->with('success', 'Question added successfully');
+        // Use admin route instead
+        return redirect()->route('admin.exams.questions.index', $exam)->with('success', 'Question added successfully');
     }
 
     public function edit(Exam $exam, Question $question)
@@ -89,7 +89,7 @@ class QuestionController extends Controller
         $validated['options'] = json_encode($request->options);
         $question->update($validated);
 
-        return redirect()->route('exams.questions.index', $exam)->with('success', 'Question updated successfully');
+        return redirect()->route('admin.exams.questions.index', $exam)->with('success', 'Question updated successfully');
     }
 
     public function destroy(Exam $exam, Question $question)
@@ -103,6 +103,6 @@ class QuestionController extends Controller
         }
 
         $question->delete();
-        return redirect()->route('exams.questions.index', $exam)->with('success', 'Question deleted successfully');
+        return redirect()->route('admin.exams.questions.index', $exam)->with('success', 'Question deleted successfully');
     }
 }
