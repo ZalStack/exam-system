@@ -1,381 +1,280 @@
-## **JAWABAN SOAL TAMBAHAN - KEAMANAN WEBSITE**
+# Dokumentasi Keamanan Website - Sistem Ujian Online
+---
 
-Berikut adalah penjelasan lengkap tentang metode keamanan yang saya terapkan dalam mini project ini untuk memaksimalkan perlindungan website dari peretas:
+Sistem ujian online ini menerapkan keamanan berlapis (Defense in Depth) yang diimplementasikan langsung pada kode sumber. Setiap metode keamanan berikut dapat diverifikasi di file kode yang ada.
 
 ---
 
-## **PENDAHULUAN**
+## 1. Pencegahan SQL Injection
 
-Dalam pengembangan sistem ujian online ini, saya menerapkan **12 metode keamanan berlapis (Defense in Depth)** untuk melindungi website dari berbagai jenis serangan siber. Berikut adalah penjelasan detailnya:
+**File:** `ExamController.php`, `ExamTakingController.php`, `QuestionController.php`
 
----
+Seluruh query database menggunakan **Laravel Eloquent ORM** yang secara otomatis menerapkan parameter binding. Tidak ada raw query string di seluruh codebase.
 
-## **1. PENCEGAHAN SQL INJECTION**
-
-### **Apa itu SQL Injection?**
-Serangan di mana peretas menyisipkan kode SQL berbahaya melalui input form untuk mengakses atau merusak database.
-
-### **Metode yang Saya Terapkan:**
-- **Menggunakan Eloquent ORM** - Semua query database menggunakan Laravel Eloquent yang secara otomatis melakukan parameter binding
-- **Tidak ada query string manual** - Menghindari raw query seperti `DB::select("SELECT * FROM users WHERE id = $id")`
-- **Validasi semua input** - Setiap input dari user divalidasi sebelum diproses
-
-### **Contoh Implementasi di Kode Saya:**
 ```php
-// AMAN - Menggunakan Eloquent (implementasi di ExamController.php)
-$exam = Exam::where('id', $request->exam_id)->first();
+// ExamController.php — Eloquent dengan parameter binding
+$exam = Exam::findOrFail($request->exam_id);
+$user = User::findOrFail($request->user_id);
 
-// AMAN - Mass assignment dengan fillable
-Exam::create($validated);
+// ExamTakingController.php — Relasi pivot melalui Eloquent
+$userExam = $authUser->exams()->where('exam_id', $exam->id)->first();
 ```
 
-### **Mengapa Ini Efektif:**
-Parameter binding memastikan input user diperlakukan sebagai DATA, bukan sebagai KODE SQL yang bisa dieksekusi.
+Parameter binding memastikan input user diperlakukan sebagai **data**, bukan kode SQL yang dapat dieksekusi. Ini mencegah serangan seperti `' OR 1=1 --`.
 
 ---
 
-## **2. PENCEGAHAN CROSS-SITE SCRIPTING (XSS)**
+## 2. Pencegahan Cross-Site Scripting (XSS)
 
-### **Apa itu XSS?**
-Serangan di mana peretas menyisipkan script JavaScript berbahaya ke dalam website yang akan dieksekusi di browser pengguna lain.
+**File:** Semua Blade views (`.blade.php`)
 
-### **Metode yang Saya Terapkan:**
-- **Blade Auto-Escaping** - Menggunakan `{{ $variable }}` bukan `{!! $variable !!}`
-- **Sanitasi Output** - Semua output yang ditampilkan ke user di-escape secara otomatis
-- **Fungsi escapeHtml()** - Fungsi custom untuk membersihkan teks sebelum ditampilkan
+Laravel Blade menggunakan syntax `{{ $variable }}` yang secara otomatis melakukan HTML escaping pada semua output.
 
-### **Contoh Implementasi di Kode Saya:**
-```javascript
-// Di file take.blade.php - Fungsi escape HTML
-function escapeHtml(text) {
-    if (!text) return '';
-    let div = document.createElement('div');
-    div.textContent = text;  // Browser otomatis escape HTML
-    return div.innerHTML;
-}
-
-// Semua tampilan menggunakan Blade escaping
-<p>{{ $question->question_text }}</p>  // Otomatis di-escape
-```
-
-### **Mengapa Ini Efektif:**
-Laravel Blade secara otomatis mengkonversi karakter berbahaya seperti `<script>` menjadi `&lt;script&gt;` sehingga tidak dapat dieksekusi sebagai kode JavaScript.
-
----
-
-## **3. PENCEGAHAN CROSS-SITE REQUEST FORGERY (CSRF)**
-
-### **Apa itu CSRF?**
-Serangan yang memanfaatkan session user yang sudah login untuk melakukan aksi tidak sah.
-
-### **Metode yang Saya Terapkan:**
-- **CSRF Token pada setiap form** - Token unik per session
-- **Verifikasi token otomatis** - Laravel memverifikasi setiap request POST/PUT/DELETE
-- **SameSite Cookie Attribute** - Cookie tidak dikirim ke domain berbeda
-
-### **Contoh Implementasi di Kode Saya:**
 ```blade
-<!-- Di setiap form, contoh di create exam -->
-<form method="POST" action="{{ route('exams.store') }}">
-    @csrf  <!-- Token CSRF otomatis ditambahkan -->
-    <!-- input fields -->
-</form>
-
-<!-- Di JavaScript fetch request -->
-fetch(url, {
-    headers: {
-        'X-CSRF-TOKEN': '{{ csrf_token() }}'  // Token dikirim di header
-    }
-})
+{{-- Output otomatis di-escape, karakter <script> menjadi &lt;script&gt; --}}
+<p>{{ $question->question_text }}</p>
+<p>{{ $exam->title }}</p>
 ```
 
-### **Mengapa Ini Efektif:**
-Token CSRF yang unik per session memastikan bahwa request yang masuk berasal dari form yang legitimate di website kita, bukan dari situs jahat eksternal.
+Karakter berbahaya seperti `<`, `>`, `"`, `'`, dan `&` dikonversi menjadi HTML entities sehingga tidak dapat dieksekusi sebagai kode JavaScript di browser pengguna lain.
 
 ---
 
-## **4. AUTENTIKASI DAN MANAJEMEN SESSION**
+## 3. Pencegahan Cross-Site Request Forgery (CSRF)
 
-### **Metode yang Saya Terapkan:**
-- **Laravel Breeze** - Sistem autentikasi yang sudah teruji keamanannya
-- **Password Hashing dengan Bcrypt** - Algoritma hashing yang kuat
-- **HTTP-Only Cookies** - Cookie tidak dapat diakses oleh JavaScript
-- **Session Expiration** - Session akan berakhir setelah tidak aktif
-- **Secure Cookie Flag** - Cookie hanya dikirim melalui HTTPS
+**File:** `app.php` (middleware stack), semua form views
 
-### **Contoh Implementasi:**
+`ValidateCsrfToken` middleware terdaftar di web middleware stack di `app.php` dan aktif untuk semua request POST/PUT/DELETE.
+
 ```php
-// Di User.php - Password hashing
+// app.php — CSRF middleware aktif di semua web routes
+$middleware->web([
+    \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+    // ...
+]);
+```
+
+```blade
+{{-- Di setiap form --}}
+<form method="POST" action="{{ route('exams.store') }}">
+    @csrf
+</form>
+```
+
+Token CSRF unik per session memastikan setiap request berasal dari form yang sah di aplikasi ini, bukan dari situs eksternal yang berbahaya.
+
+---
+
+## 4. Keamanan Password & Autentikasi
+
+**File:** `User.php`, `app.php`, `web.php`
+
+Password di-hash otomatis menggunakan **Bcrypt** melalui cast `'hashed'` di model User. Autentikasi menggunakan **Laravel Breeze** yang sudah teruji.
+
+```php
+// User.php — Password hashing otomatis
 protected function casts(): array
 {
     return [
-        'password' => 'hashed',  // Laravel otomatis hash dengan Bcrypt
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed', // Bcrypt otomatis
     ];
 }
+```
 
-// Di middleware - Proteksi route
+```php
+// web.php — Semua route sensitif dilindungi middleware auth
 Route::middleware(['auth'])->group(function () {
-    // Route yang memerlukan login
+    Route::get('/exams', [ExamController::class, 'index']);
+    // ...
 });
 ```
 
-### **Mengapa Ini Efektif:**
-Bcrypt adalah algoritma yang sengaja dibuat lambat (100ms per hash) sehingga menyulitkan serangan brute force. HTTP-only cookies mencegah XSS mencuri session cookie.
+Bcrypt adalah algoritma yang sengaja lambat (~100ms per hash) sehingga menyulitkan serangan brute force meskipun database bocor.
 
 ---
 
-## **5. ROLE-BASED ACCESS CONTROL (RBAC)**
+## 5. Role-Based Access Control (RBAC)
 
-### **Apa itu RBAC?**
-Sistem kontrol akses berdasarkan peran (role) user.
+**File:** `AdminMiddleware.php`, `UserMiddleware.php`, `User.php`, `web.php`
 
-### **Metode yang Saya Terapkan:**
-- **Middleware Kustom** - AdminMiddleware untuk proteksi route admin
-- **Role di Database** - Field `role` di tabel users (admin/user)
-- **Pengecekan di Controller** - Verifikasi role sebelum aksi sensitive
+Sistem menggunakan dua lapis proteksi: **middleware di route level** dan **pengecekan manual di controller**.
 
-### **Contoh Implementasi di Kode Saya:**
 ```php
-// AdminMiddleware.php
-class AdminMiddleware {
-    public function handle($request, Closure $next) {
-        if (!Auth::check() || Auth::user()->role !== 'admin') {
-            abort(403, 'Unauthorized access');
-        }
-        return $next($request);
+// AdminMiddleware.php — Blokir di level route
+public function handle(Request $request, Closure $next): Response
+{
+    if (!Auth::check()) {
+        return redirect()->route('login');
     }
+    if (Auth::user()->role !== 'admin') {
+        abort(403, 'Unauthorized access. Admin only.');
+    }
+    return $next($request);
 }
+```
 
-// Di User.php
-public function isAdmin(): bool {
+```php
+// web.php — Admin routes dilindungi middleware 'admin'
+Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/exams', [ExamController::class, 'index']);
+    Route::delete('/exams/{exam}', [ExamController::class, 'destroy']);
+    // Semua route admin di sini
+});
+```
+
+```php
+// User.php — Helper method untuk cek role
+public function isAdmin(): bool
+{
     return $this->role === 'admin';
 }
-
-// Di controller
-if (!Auth::user()->isAdmin()) {
-    abort(403);
-}
 ```
 
-### **Mengapa Ini Efektif:**
-Menerapkan prinsip least privilege - user biasa tidak bisa mengakses fitur admin meskipun mereka mengetahui URL-nya.
+Dengan middleware `admin` di route, user biasa akan mendapat **HTTP 403** bahkan sebelum request masuk ke controller, meskipun mereka mengetahui URL admin secara langsung.
 
 ---
 
-## **6. VALIDASI INPUT DI SISI SERVER**
+## 6. Validasi Input Server-Side
 
-### **Metode yang Saya Terapkan:**
-- **Form Request Validation** - Validasi terpusat sebelum data diproses
-- **Aturan Validasi Ketat** - Type, format, length, range checking
-- **Sanitasi Input** - Menghilangkan karakter berbahaya
+**File:** `ExamController.php`, `QuestionController.php`, `AdminExtraTimeController.php`, `ExamTakingController.php`
 
-### **Contoh Implementasi di Kode Saya:**
+Setiap input dari user divalidasi di sisi server dengan aturan yang ketat sebelum diproses.
+
 ```php
-// Di ExamController.php
+// ExamController.php
 $validated = $request->validate([
-    'title' => 'required|string|max:255',
-    'duration' => 'required|integer|min:1|max:480',  // Max 8 jam
-    'total_questions' => 'required|integer|min:1|max:200',
+    'title'           => 'required|string|max:255',
+    'description'     => 'nullable|string',
+    'duration'        => 'required|integer|min:1|max:480', // Maks 8 jam
+    'total_questions' => 'required|integer|min:1|max:200', // Maks 200 soal
 ]);
 
-// Validasi dengan pesan custom
+// AdminExtraTimeController.php
 $request->validate([
-    'email' => 'required|email|unique:users',
-    'password' => 'required|min:8|confirmed'
+    'exam_id'       => 'required|exists:exams,id',
+    'user_id'       => 'required|exists:users,id',
+    'extra_minutes' => 'required|integer|min:1|max:60',
 ]);
 ```
 
-### **Mengapa Ini Efektif:**
-Validasi server-side adalah lapisan keamanan terakhir - tidak bisa dilewati meskipun user mematikan JavaScript di browser.
+Validasi server-side tidak bisa dilewati meskipun user mematikan JavaScript di browser atau memanipulasi request secara manual menggunakan tools seperti Postman atau curl.
 
 ---
 
-## **7. KEAMANAN UPLOAD FILE**
+## 7. Keamanan Upload File
 
-### **Metode yang Saya Terapkan:**
-- **Validasi Tipe File** - Hanya gambar yang diizinkan (jpeg, png, jpg, gif)
-- **Batasan Ukuran** - Maksimal 2MB
-- **Rename File Otomatis** - File disimpan dengan nama unik
-- **Storage Protected** - File tidak bisa diakses langsung, harus melalui storage link
+**File:** `QuestionController.php`
 
-### **Contoh Implementasi di Kode Saya:**
+Upload gambar untuk soal ujian divalidasi tipe file, ukuran, dan disimpan dengan nama unik otomatis.
+
 ```php
-// Di QuestionController.php
+// QuestionController.php — Validasi file upload
+$validated = $request->validate([
+    'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' // Maks 2MB
+]);
+
 if ($request->hasFile('image')) {
-    $validated = $request->validate([
-        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
-    ]);
     $path = $request->file('image')->store('questions', 'public');
-    // File akan disimpan dengan nama unik otomatis
+    // Laravel otomatis memberi nama file unik (UUID)
+}
+
+// Hapus file lama saat update
+if ($question->image) {
+    Storage::disk('public')->delete($question->image);
 }
 ```
 
-### **Mengapa Ini Efektif:**
-Validasi mencegah upload file berbahaya seperti `.php`, `.exe`, atau `.js`. Rename otomatis mencegah path traversal attack.
+Validasi `mimes` mencegah upload file berbahaya seperti `.php`, `.exe`, atau `.js`. Penamaan otomatis mencegah path traversal attack dan penimpaan file yang sudah ada.
 
 ---
 
-## **8. RATE LIMITING (PEMBATASAN REQUEST)**
+## 8. Keamanan Business Logic (Proteksi Alur Ujian)
 
-### **Apa itu Rate Limiting?**
-Membatasi jumlah request yang bisa dilakukan user dalam periode waktu tertentu.
+**File:** `ExamTakingController.php`
 
-### **Metode yang Saya Terapkan:**
-- **Throttle Middleware** - Membatasi request ke endpoint sensitif
-- **Login Throttle** - Mencegah brute force login
-- **API Rate Limiting** - Perlindungan untuk endpoint AJAX
+Selain keamanan teknis, alur ujian dilindungi dari manipulasi logika bisnis.
 
-### **Contoh Implementasi:**
 ```php
-// Di routes/web.php (bawaan Laravel)
-Route::middleware(['throttle:10,1'])->group(function () {
-    Route::post('/exams/{exam}/save-answer', [ExamTakingController::class, 'saveAnswer']);
-});
+// ExamTakingController.php — Cek status ujian sebelum setiap aksi
+public function saveAnswer(Request $request, Exam $exam)
+{
+    $userExam = $authUser->exams()->where('exam_id', $exam->id)->first();
 
-// Laravel bawaan untuk login
-// 5 percobaan gagal, lockout 1 menit
-protected $maxAttempts = 5;
-protected $decayMinutes = 1;
+    // Tidak bisa simpan jawaban jika sudah selesai
+    if (!$userExam || $userExam->pivot->completed_at) {
+        return response()->json(['error' => 'Cannot save answer'], 403);
+    }
+
+    // Cek apakah waktu masih tersedia (termasuk extra time)
+    $extraTime = $userExam->pivot->extra_time ?? 0;
+    $totalDuration = ($exam->duration + $extraTime) * 60;
+    $timeRemaining = $totalDuration - now()->diffInSeconds($userExam->pivot->started_at);
+
+    if ($timeRemaining <= 0) {
+        $this->autoSubmit($exam); // Auto-submit jika waktu habis
+        return response()->json(['error' => 'Time is up!'], 403);
+    }
+}
 ```
 
-### **Mengapa Ini Efektif:**
-Mencegah serangan brute force dan DoS (Denial of Service) dengan membatasi jumlah request.
+Pengecekan ini memastikan peserta tidak bisa mengirim jawaban setelah waktu habis atau setelah ujian selesai, meskipun memanipulasi timer di sisi client (browser).
 
 ---
 
-## **9. ENVIRONMENT SECURITY**
+## 9. Mass Assignment Protection
 
-### **Metode yang Saya Terapkan:**
-- **.env File Protection** - Tidak di-commit ke version control
-- **Debug Mode Non-Aktif** - `APP_DEBUG=false` di production
-- **HTTPS Enforcement** - Konfigurasi untuk memaksa HTTPS
-- **Production Environment** - `APP_ENV=production`
+**File:** `Exam.php`, `Question.php`, `User.php`
 
-### **Konfigurasi di .env:**
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://domainanda.com
+Semua model mendefinisikan `$fillable` secara eksplisit untuk mencegah mass assignment attack.
 
-SESSION_SECURE_COOKIE=true
-SESSION_HTTP_ONLY=true
-SESSION_SAME_SITE=lax
-```
-
-### **Mengapa Ini Efektif:**
-Debug mode yang non-aktif mencegah kebocoran informasi sensitif seperti struktur database, query SQL, dan path file.
-
----
-
-## **10. LOGGING DAN MONITORING**
-
-### **Metode yang Saya Terapkan:**
-- **Laravel Logging** - Semua error dan warning tercatat
-- **Activity Logging** - Mencatat aktivitas penting
-- **Failed Login Attempts** - Tercatat untuk deteksi brute force
-
-### **Contoh Implementasi:**
 ```php
-use Illuminate\Support\Facades\Log;
+// Exam.php
+protected $fillable = ['title', 'description', 'duration', 'total_questions'];
 
-// Mencoba login gagal
-Log::warning('Failed login attempt', [
-    'email' => $request->email,
-    'ip' => $request->ip(),
-    'user_agent' => $request->userAgent()
-]);
+// Question.php
+protected $fillable = ['exam_id', 'question_text', 'image', 'options', 'correct_answer', 'points'];
 
-// Aktivitas admin
-Log::info('Admin added extra time', [
-    'admin' => Auth::user()->email,
-    'user' => $user->email,
-    'minutes' => $request->extra_minutes
-]);
+// User.php
+protected $fillable = ['name', 'email', 'password', 'role'];
+
+// Field sensitif disembunyikan dari serialisasi JSON
+protected $hidden = ['password', 'remember_token'];
 ```
 
-### **Mengapa Ini Efektif:**
-Logging memungkinkan deteksi dini serangan dan investigasi forensik jika terjadi insiden keamanan.
+Tanpa `$fillable`, penyerang bisa mengirim field tambahan seperti `role=admin` melalui form untuk meningkatkan hak akses mereka.
 
 ---
 
-## **11. HEADERS KEAMANAN**
+## Ringkasan Implementasi
 
-### **Metode yang Saya Terapkan:**
-- **X-Frame-Options** - Mencegah clickjacking
-- **X-Content-Type-Options** - Mencegah MIME type sniffing
-- **Referrer-Policy** - Mengontrol informasi referer
-
-### **Implementasi di .htaccess atau Middleware:**
-```php
-// Di middleware
-header('X-Frame-Options: DENY');
-header('X-Content-Type-Options: nosniff');
-header('X-XSS-Protection: 1; mode=block');
-header('Referrer-Policy: strict-origin-when-cross-origin');
-```
+| # | Metode Keamanan | File Implementasi | Status |
+|---|-----------------|-------------------|--------|
+| 1 | SQL Injection Prevention | Semua Controller (Eloquent ORM) | ✅ Aktif |
+| 2 | XSS Prevention | Semua Blade Views | ✅ Aktif |
+| 3 | CSRF Protection | `app.php` + semua form | ✅ Aktif |
+| 4 | Password Hashing (Bcrypt) | `User.php` | ✅ Aktif |
+| 5 | Role-Based Access Control | `AdminMiddleware.php`, `web.php` | ✅ Aktif |
+| 6 | Server-Side Input Validation | Semua Controller | ✅ Aktif |
+| 7 | File Upload Security | `QuestionController.php` | ✅ Aktif |
+| 8 | Business Logic Protection | `ExamTakingController.php` | ✅ Aktif |
+| 9 | Mass Assignment Protection | `Exam.php`, `Question.php`, `User.php` | ✅ Aktif |
 
 ---
 
-## **12. DEPENDENCIES UPDATE**
+## Kesimpulan
 
-### **Metode yang Saya Terapkan:**
-- **Regular Updates** - Selalu update package ke versi terbaru
-- **Composer Audit** - Memeriksa vulnerability di package PHP
-- **NPM Audit** - Memeriksa vulnerability di package JavaScript
-
-### **Perintah yang Sering dijalankan:**
-```bash
-composer update           # Update PHP dependencies
-composer audit           # Cek vulnerability
-npm update              # Update Node dependencies
-npm audit              # Cek vulnerability npm
-```
-
-### **Mengapa Ini Efektif:**
-Package yang outdated sering menjadi target serangan karena vulnerability yang sudah diketahui publik.
-
----
-
-## **RINGKASAN CHECKLIST KEAMANAN**
-
-| No | Metode Keamanan | Implementasi di Proyek | Status |
-|----|----------------|------------------------|--------|
-| 1 | SQL Injection | Eloquent ORM dengan parameter binding | ✅ |
-| 2 | XSS Prevention | Blade auto-escaping + escapeHtml() | ✅ |
-| 3 | CSRF Protection | CSRF tokens di semua form & fetch | ✅ |
-| 4 | Password Security | Bcrypt hashing (Laravel default) | ✅ |
-| 5 | Role-Based Access | Middleware AdminMiddleware & UserMiddleware | ✅ |
-| 6 | Input Validation | Server-side validation semua input | ✅ |
-| 7 | File Upload Security | Validasi type, size, rename otomatis | ✅ |
-| 8 | Rate Limiting | Throttle middleware untuk endpoint sensitif | ✅ |
-| 9 | Session Security | HTTP-only, Secure, SameSite cookies | ✅ |
-| 10 | Environment | APP_DEBUG=false, .env protection | ✅ |
-| 11 | Logging | Activity & error logging | ✅ |
-| 12 | HTTPS | Konfigurasi ready untuk production | ✅ |
-
----
-
-## **KESIMPULAN**
-
-Keamanan website tidak bisa mengandalkan **SATU** metode saja. Saya menerapkan **DEFENSE IN DEPTH** - 12 lapisan keamanan yang saling melengkapi:
+Keamanan website tidak dapat mengandalkan satu metode saja. Sistem ini menerapkan **Defense in Depth** — setiap lapisan keamanan saling melengkapi:
 
 ```
-Lapisan 1: Input Validation
-Lapisan 2: CSRF Protection
-Lapisan 3: SQL Injection Prevention
-Lapisan 4: XSS Prevention
-Lapisan 5: Authentication
-Lapisan 6: Authorization (RBAC)
-Lapisan 7: File Upload Security
-Lapisan 8: Rate Limiting
-Lapisan 9: Session Security
-Lapisan 10: Environment Security
-Lapisan 11: Logging & Monitoring
-Lapisan 12: Regular Updates
+Input masuk → Validasi Input (Layer 1)
+            → CSRF Check (Layer 2)
+            → Autentikasi (Layer 3)
+            → Otorisasi RBAC (Layer 4)
+            → Eloquent ORM / SQL Injection Prevention (Layer 5)
+            → Blade XSS Escaping (Layer 6)
+            → Business Logic Check (Layer 7)
+            → Mass Assignment Protection (Layer 8)
 ```
 
----
-
-**Dibuat oleh:** Muhammad Fakhrizal Garnindyo
-**Tanggal:** 8 Juni 2026
-**Proyek:** Mini Project IT Support - KPM
+Jika satu lapisan terlewati, lapisan berikutnya tetap memberikan perlindungan.
