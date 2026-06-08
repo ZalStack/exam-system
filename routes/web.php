@@ -33,8 +33,8 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Admin only routes
-Route::middleware(['auth'])->prefix('admin')->group(function () {
+// Admin only routes — middleware 'admin' memblokir non-admin di level route
+Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     // Exam management
     Route::get('/exams', [ExamController::class, 'index'])->name('admin.exams.index');
     Route::get('/exams/create', [ExamController::class, 'create'])->name('admin.exams.create');

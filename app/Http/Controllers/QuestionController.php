@@ -12,7 +12,10 @@ class QuestionController extends Controller
 {
     public function index(Exam $exam)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
@@ -22,7 +25,10 @@ class QuestionController extends Controller
 
     public function create(Exam $exam)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
         return view('admin.questions.create', compact('exam'));
@@ -30,7 +36,10 @@ class QuestionController extends Controller
 
     public function store(Request $request, Exam $exam)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
@@ -51,13 +60,15 @@ class QuestionController extends Controller
         $validated['options'] = json_encode($request->options);
         $exam->questions()->create($validated);
 
-        // Use admin route instead
         return redirect()->route('admin.exams.questions.index', $exam)->with('success', 'Question added successfully');
     }
 
     public function edit(Exam $exam, Question $question)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
         return view('admin.questions.edit', compact('exam', 'question'));
@@ -65,7 +76,10 @@ class QuestionController extends Controller
 
     public function update(Request $request, Exam $exam, Question $question)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
@@ -94,7 +108,10 @@ class QuestionController extends Controller
 
     public function destroy(Exam $exam, Question $question)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 

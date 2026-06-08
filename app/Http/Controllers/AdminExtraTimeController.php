@@ -12,14 +12,17 @@ class AdminExtraTimeController extends Controller
 {
     public function index()
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
         // Get all exams with users who have started but not completed
         $exams = Exam::with(['users' => function($query) {
-            $query->whereNotNull('started_at')
-                  ->whereNull('completed_at');
+            $query->wherePivotNotNull('started_at')
+                  ->wherePivotNull('completed_at');
         }])->get();
 
         return view('admin.extra-time.index', compact('exams'));
@@ -27,7 +30,10 @@ class AdminExtraTimeController extends Controller
 
     public function addTime(Request $request)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 

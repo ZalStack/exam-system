@@ -12,21 +12,27 @@ class ExamController extends Controller
 {
     public function index()
     {
-        if (Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if ($authUser->isAdmin()) {
             $exams = Exam::withCount('questions')->get();
             return view('admin.exams.index', compact('exams'));
         }
 
-        $registeredExamIds = Auth::user()->exams->pluck('id')->toArray();
+        $registeredExamIds = $authUser->exams->pluck('id')->toArray();
         $availableExams = Exam::whereNotIn('id', $registeredExamIds)->get();
-        $registeredExams = Auth::user()->exams;
+        $registeredExams = $authUser->exams;
 
         return view('user.exams.index', compact('availableExams', 'registeredExams'));
     }
 
     public function create()
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
         return view('admin.exams.create');
@@ -34,15 +40,18 @@ class ExamController extends Controller
 
     public function store(Request $request)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'duration' => 'required|integer|min:1|max:480', // Max 8 hours
-            'total_questions' => 'required|integer|min:1|max:200', // Max 200 questions
+            'duration' => 'required|integer|min:1|max:480',
+            'total_questions' => 'required|integer|min:1|max:200',
         ]);
 
         $exam = Exam::create($validated);
@@ -52,7 +61,10 @@ class ExamController extends Controller
 
     public function edit(Exam $exam)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
         return view('admin.exams.edit', compact('exam'));
@@ -60,7 +72,10 @@ class ExamController extends Controller
 
     public function update(Request $request, Exam $exam)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
@@ -78,7 +93,10 @@ class ExamController extends Controller
 
     public function destroy(Exam $exam)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
@@ -86,10 +104,12 @@ class ExamController extends Controller
         return redirect()->route('exams.index')->with('success', 'Exam deleted successfully');
     }
 
-    // Method untuk admin menambah extra time
     public function showAddExtraTimeForm()
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
@@ -103,7 +123,10 @@ class ExamController extends Controller
 
     public function addExtraTime(Request $request)
     {
-        if (!Auth::user()->isAdmin()) {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+
+        if (!$authUser->isAdmin()) {
             abort(403);
         }
 
